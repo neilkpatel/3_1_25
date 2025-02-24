@@ -9,7 +9,7 @@ import {
   type InsertRestaurant,
   type Location,
 } from "@shared/schema";
-//import { searchBarsNearby } from "./services/yelp"; // Removed Yelp import
+import { searchBarsNearby } from "./services/yelp";
 
 export interface IStorage {
   // Users
@@ -36,48 +36,16 @@ export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private friends: Map<number, Friend>;
   private supRequests: Map<number, SupRequest>;
-  private restaurants: Map<number, Restaurant> = new Map(); // Added restaurants map
   private currentIds: { [key: string]: number };
 
   constructor() {
     this.users = new Map();
     this.friends = new Map();
     this.supRequests = new Map();
-    this.currentIds = { users: 1, friends: 1, supRequests: 1, restaurants: 1 }; // Added restaurants to currentIds
+    this.currentIds = { users: 1, friends: 1, supRequests: 1 };
 
-    this.initializeRestaurants();
+    // Add a simulated sup request
     this.initializeSimulatedRequest();
-  }
-
-  private initializeRestaurants() {
-    const mockBars: InsertRestaurant[] = [
-      {
-        name: "The Local Tavern",
-        description: "Cozy neighborhood pub with craft beers",
-        image: "https://images.unsplash.com/photo-1514933651103-005eec06c04b",
-        location: { lat: 25.7143, lng: -80.3625 }, // Near user's location
-        rating: 4
-      },
-      {
-        name: "Sunset Lounge",
-        description: "Rooftop bar with amazing cocktails",
-        image: "https://images.unsplash.com/photo-1470337458703-46ad1756a187",
-        location: { lat: 25.7145, lng: -80.3627 }, // Slightly offset
-        rating: 5
-      },
-      {
-        name: "The Brew House",
-        description: "Sports bar with local craft beers",
-        image: "https://images.unsplash.com/photo-1546622891-02c72c1537b6",
-        location: { lat: 25.7141, lng: -80.3623 }, // Slightly offset
-        rating: 4
-      }
-    ];
-
-    mockBars.forEach(bar => {
-      const id = this.currentIds.restaurants++;
-      this.restaurants.set(id, { ...bar, id });
-    });
   }
 
   private initializeSimulatedRequest() {
@@ -150,12 +118,18 @@ export class MemStorage implements IStorage {
   }
 
   async getRestaurants(): Promise<Restaurant[]> {
-    return Array.from(this.restaurants.values()); // Return mock bars
+    // This will be replaced by Yelp API calls in getNearbyRestaurants
+    return [];
   }
 
   async getNearbyRestaurants(lat: number, lng: number, limit: number): Promise<Restaurant[]> {
-    const restaurants = Array.from(this.restaurants.values());
-    return restaurants.slice(0, limit); // Return mock bars
+    try {
+      const bars = await searchBarsNearby(lat, lng);
+      return bars.slice(0, limit);
+    } catch (error) {
+      console.error('Error fetching nearby bars:', error);
+      return [];
+    }
   }
 }
 

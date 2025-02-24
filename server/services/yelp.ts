@@ -13,7 +13,7 @@ interface YelpBusiness {
     zip_code: string;
     country: string;
     display_address: string[];
-    coordinate: {
+    coordinates: {
       latitude: number;
       longitude: number;
     };
@@ -48,15 +48,15 @@ export async function searchBarsNearby(lat: number, lng: number, radius: number 
     }
 
     const data: YelpSearchResponse = await response.json();
-    
+
     return data.businesses.map(business => ({
       id: parseInt(business.id.slice(-8), 16), // Convert last 8 chars of Yelp ID to number
       name: business.name,
       description: `Rating: ${business.rating}/5 stars - ${business.location.address1}`,
       image: business.image_url || 'https://placehold.co/600x400?text=No+Image',
       location: {
-        lat: business.location.coordinate.latitude,
-        lng: business.location.coordinate.longitude,
+        lat: business.location.coordinates.latitude,
+        lng: business.location.coordinates.longitude,
       },
       rating: Math.round(business.rating),
     }));
