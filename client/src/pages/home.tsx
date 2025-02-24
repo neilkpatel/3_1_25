@@ -23,10 +23,25 @@ export default function Home() {
   });
 
   useEffect(() => {
-    // Connect to notification service with hardcoded user ID
-    // Using an empty dependency array to only connect once when component mounts
-    connect(1); // TODO: Use actual user ID
-  }, []); // Empty dependency array
+    // Initialize location first, then connect to WebSocket
+    const initializeServices = async () => {
+      try {
+        const location = await getCurrentLocation();
+        setUserLocation(location);
+        // Connect to notification service with hardcoded user ID
+        connect(1); // TODO: Use actual user ID
+      } catch (error) {
+        console.error('Initialization error:', error);
+        toast({
+          variant: "destructive",
+          title: "Setup Error",
+          description: error instanceof Error ? error.message : "Could not initialize required services.",
+        });
+      }
+    };
+
+    initializeServices();
+  }, []); // Empty dependency array - run once when component mounts
 
   const createRequest = useMutation({
     mutationFn: async (location: Location) => {
@@ -47,15 +62,23 @@ export default function Home() {
   });
 
   const handleSupClick = async () => {
-    try {
-      const location = await getCurrentLocation();
-      setUserLocation(location);
-      await createRequest.mutate(location);
-    } catch (error) {
+    if (!userLocation) {
       toast({
         variant: "destructive",
         title: "Location Error",
-        description: error instanceof Error ? error.message : "Could not get your location.",
+        description: "Please allow location access to continue.",
+      });
+      return;
+    }
+
+    try {
+      await createRequest.mutate(userLocation);
+    } catch (error) {
+      console.error('Request error:', error);
+      toast({
+        variant: "destructive",
+        title: "Request Error",
+        description: error instanceof Error ? error.message : "Could not send your request.",
       });
     }
   };
@@ -72,7 +95,7 @@ export default function Home() {
             size="lg"
             className="w-32 h-32 rounded-full text-2xl font-bold"
             onClick={handleSupClick}
-            disabled={isRequesting || createRequest.isPending}
+            disabled={isRequesting || createRequest.isPending || !userLocation}
           >
             Sup!
           </Button>
@@ -112,7 +135,7 @@ export default function Home() {
           </div>
         )}
 
-        {activeRequests?.map((request: SupRequest) => (
+        {activeRequests?.map((request) => (
           <LocationRequest key={request.id} request={request} />
         ))}
       </div>

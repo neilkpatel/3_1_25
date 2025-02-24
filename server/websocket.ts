@@ -14,7 +14,8 @@ class NotificationServer {
   constructor(server: Server) {
     this.wss = new WebSocketServer({ 
       server,
-      path: "/ws/notifications"  // Dedicated path for notifications
+      path: "/ws/notifications",  // Dedicated path for notifications
+      clientTracking: true // Enable built-in client tracking
     });
     this.clients = new Map();
 
