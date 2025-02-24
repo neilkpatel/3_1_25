@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
@@ -10,38 +10,57 @@ import { LocationRequest } from "@/components/location-request";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { RestaurantCard } from "@/components/restaurant-card";
 import { getCurrentLocation } from "@/lib/location";
-import type { SupRequest, Location } from "@shared/schema";
+import type { SupRequest, Restaurant, Location } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
   const { connect } = useNotifications();
   const [isRequesting, setIsRequesting] = useState(false);
   const [userLocation, setUserLocation] = useState<Location>();
+  const [isInitializingLocation, setIsInitializingLocation] = useState(true);
 
   const { data: activeRequests } = useQuery<SupRequest[]>({
     queryKey: ["/api/sup-requests"],
   });
 
+  const { data: nearbyRestaurants } = useQuery<Restaurant[]>({
+    queryKey: ['/api/restaurants/nearby'],
+    enabled: !!userLocation,
+    queryFn: async () => {
+      if (!userLocation) return [];
+      const response = await apiRequest(
+        'GET',
+        `/api/restaurants/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}`
+      );
+      return response.json();
+    }
+  });
+
   useEffect(() => {
-    // Initialize location first, then connect to WebSocket
-    const initializeServices = async () => {
+    // Initialize web socket connection immediately
+    connect(1); // TODO: Use actual user ID
+  }, []);
+
+  useEffect(() => {
+    // Initialize location separately
+    const initializeLocation = async () => {
       try {
         const location = await getCurrentLocation();
         setUserLocation(location);
-        // Connect to notification service with hardcoded user ID
-        connect(1); // TODO: Use actual user ID
       } catch (error) {
-        console.error('Initialization error:', error);
+        console.error('Location error:', error);
         toast({
           variant: "destructive",
-          title: "Setup Error",
-          description: error instanceof Error ? error.message : "Could not initialize required services.",
+          title: "Location Access Required",
+          description: "Please enable location access in your browser to use all features.",
         });
+      } finally {
+        setIsInitializingLocation(false);
       }
     };
 
-    initializeServices();
-  }, []); // Empty dependency array - run once when component mounts
+    initializeLocation();
+  }, [toast]);
 
   const createRequest = useMutation({
     mutationFn: async (location: Location) => {
@@ -54,6 +73,7 @@ export default function Home() {
     },
     onSuccess: () => {
       setIsRequesting(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/sup-requests"] });
       toast({
         title: "Sup request sent!",
         description: "Waiting for friends to respond...",
@@ -65,8 +85,8 @@ export default function Home() {
     if (!userLocation) {
       toast({
         variant: "destructive",
-        title: "Location Error",
-        description: "Please allow location access to continue.",
+        title: "Location Required",
+        description: "Please enable location access to send a Sup request.",
       });
       return;
     }
@@ -95,9 +115,9 @@ export default function Home() {
             size="lg"
             className="w-32 h-32 rounded-full text-2xl font-bold"
             onClick={handleSupClick}
-            disabled={isRequesting || createRequest.isPending || !userLocation}
+            disabled={isRequesting || createRequest.isPending || isInitializingLocation}
           >
-            Sup!
+            {isInitializingLocation ? "Loading..." : "Sup!"}
           </Button>
 
           {isRequesting && (
@@ -110,28 +130,25 @@ export default function Home() {
 
         {userLocation && (
           <div className="space-y-4">
-            <MapView location={userLocation} />
+            <MapView 
+              userLocation={userLocation}
+              supRequests={activeRequests}
+              restaurants={nearbyRestaurants}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <RestaurantCard
-                name="The Cozy Corner"
-                description="Intimate bistro with farm-to-table cuisine"
-                image="https://images.unsplash.com/photo-1648396705951-5dce63b1db84"
-                rating={4}
-              />
-              <RestaurantCard
-                name="Urban Plate"
-                description="Modern American cuisine in an industrial setting"
-                image="https://images.unsplash.com/photo-1705917893728-d5c594c98d51"
-                rating={5}
-              />
-              <RestaurantCard
-                name="Sushi Master"
-                description="Premium sushi and Japanese delicacies"
-                image="https://images.unsplash.com/photo-1597595272404-d8a0da48ec8f"
-                rating={5}
-              />
-            </div>
+            {nearbyRestaurants && nearbyRestaurants.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {nearbyRestaurants.map(restaurant => (
+                  <RestaurantCard
+                    key={restaurant.id}
+                    name={restaurant.name}
+                    description={restaurant.description}
+                    image={restaurant.image}
+                    rating={restaurant.rating}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
