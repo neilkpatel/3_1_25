@@ -75,17 +75,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const schema = z.object({
       lat: z.coerce.number(),
       lng: z.coerce.number(),
+      radius: z.coerce.number().optional().default(1000),
     });
 
     try {
       console.log('Received nearby restaurants request:', req.query);
-      const { lat, lng } = schema.parse(req.query);
-      const restaurants = await storage.getNearbyRestaurants(lat, lng, 3);
-      console.log('Returning restaurants:', restaurants);
-      res.json(restaurants);
+      const { lat, lng, radius } = schema.parse(req.query);
+
+      console.log('Fetching bars near:', { lat, lng, radius });
+      const bars = await storage.getNearbyRestaurants(lat, lng, 10);
+
+      console.log('Returning bars:', bars);
+      res.json(bars);
     } catch (error) {
-      console.error('Error fetching restaurants:', error);
-      res.status(400).json({ error: "Invalid coordinates" });
+      console.error('Error in /api/restaurants/nearby:', error);
+
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          error: "Invalid coordinates format",
+          details: error.errors
+        });
+      } else {
+        res.status(500).json({ 
+          error: "Failed to fetch nearby bars",
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     }
   });
 

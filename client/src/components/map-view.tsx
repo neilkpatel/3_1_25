@@ -53,6 +53,12 @@ export function MapView({ userLocation, supRequests = [], restaurants = [] }: Ma
     ...restaurants.map(rest => rest.location as Location)
   ];
 
+  console.log('Mapping locations:', {
+    userLocation,
+    supRequests: supRequests.map(r => r.location),
+    restaurants: restaurants.map(r => ({ name: r.name, location: r.location }))
+  });
+
   const bounds = L.latLngBounds(
     locations.map(loc => [loc.lat, loc.lng] as [number, number])
   );
