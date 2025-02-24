@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MapView } from "@/components/map-view";
@@ -13,12 +14,19 @@ import type { SupRequest, Location } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
+  const { connect } = useNotifications();
   const [isRequesting, setIsRequesting] = useState(false);
   const [userLocation, setUserLocation] = useState<Location>();
 
-  const { data: activeRequests } = useQuery({
+  const { data: activeRequests } = useQuery<SupRequest[]>({
     queryKey: ["/api/sup-requests"],
   });
+
+  useEffect(() => {
+    // Connect to notification service with hardcoded user ID
+    // Using an empty dependency array to only connect once when component mounts
+    connect(1); // TODO: Use actual user ID
+  }, []); // Empty dependency array
 
   const createRequest = useMutation({
     mutationFn: async (location: Location) => {
@@ -59,7 +67,7 @@ export default function Home() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
             Ready to meet up?
           </h1>
-          
+
           <Button
             size="lg"
             className="w-32 h-32 rounded-full text-2xl font-bold"
@@ -80,7 +88,7 @@ export default function Home() {
         {userLocation && (
           <div className="space-y-4">
             <MapView location={userLocation} />
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <RestaurantCard
                 name="The Cozy Corner"

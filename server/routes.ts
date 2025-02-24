@@ -3,9 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertSupRequestSchema } from "@shared/schema";
 import { z } from "zod";
+import { createNotificationServer } from "./websocket";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  const notificationServer = createNotificationServer(httpServer);
 
   // Get active sup requests
   app.get("/api/sup-requests", async (req, res) => {
@@ -18,6 +20,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertSupRequestSchema.parse(req.body);
       const request = await storage.createSupRequest(data);
+
+      // Broadcast new sup request to all connected clients
+      notificationServer.broadcastNotification({
+        type: "New Sup Request",
+        message: "Someone wants to meet up!",
+        data: request
+      });
+
       res.json(request);
     } catch (error) {
       res.status(400).json({ error: "Invalid request data" });
@@ -28,15 +38,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sup-requests/:id/accept", async (req, res) => {
     const { id } = req.params;
     const schema = z.object({ location: z.object({ lat: z.number(), lng: z.number() }) });
-    
+
     try {
       const { location } = schema.parse(req.body);
       const request = await storage.getSupRequest(Number(id));
-      
+
       if (!request) {
         return res.status(404).json({ error: "Request not found" });
       }
-      
+
       if (request.status !== "active") {
         return res.status(400).json({ error: "Request cannot be accepted" });
       }
@@ -45,6 +55,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "accepted",
         acceptedLocation: location,
         acceptedBy: 1, // TODO: Use actual user ID
+      });
+
+      // Send notification to the original sender
+      notificationServer.sendNotification(request.senderId, {
+        type: "Request Accepted",
+        message: "Someone accepted your meet-up request!",
+        data: updated
       });
 
       res.json(updated);
