@@ -44,7 +44,7 @@ export class MemStorage implements IStorage {
     this.restaurants = new Map();
     this.currentIds = { users: 1, friends: 1, supRequests: 1, restaurants: 1 };
     
-    // Add mock restaurants
+    // Add mock restaurants and a simulated sup request
     this.initializeRestaurants();
   }
 
@@ -77,6 +77,19 @@ export class MemStorage implements IStorage {
       const id = this.currentIds.restaurants++;
       this.restaurants.set(id, { ...restaurant, id });
     });
+
+    // Add a simulated sup request
+    const simulatedRequest: InsertSupRequest = {
+      senderId: 2, // Different user
+      location: { lat: 40.7158, lng: -74.005 }, // Slightly offset location
+      status: "active",
+      expiresAt: new Date(Date.now() + 60000), // Expires in 1 minute
+      acceptedBy: null,
+      acceptedLocation: null
+    };
+
+    const id = this.currentIds.supRequests++;
+    this.supRequests.set(id, { ...simulatedRequest, id });
   }
 
   async getUser(id: number): Promise<User | undefined> {

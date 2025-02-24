@@ -7,8 +7,11 @@ export async function getCurrentLocation(): Promise<Location> {
       return;
     }
 
+    console.log('Requesting location access...');
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log('Location access granted:', position.coords);
         resolve({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -31,6 +34,12 @@ export async function getCurrentLocation(): Promise<Location> {
             errorMessage += "An unknown error occurred.";
         }
 
+        console.error('Location error:', {
+          code: error.code,
+          message: error.message,
+          fullError: errorMessage
+        });
+
         reject(new Error(errorMessage));
       },
       {
@@ -39,5 +48,18 @@ export async function getCurrentLocation(): Promise<Location> {
         maximumAge: 0
       }
     );
+  });
+}
+
+export function isLocationPermissionGranted(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!navigator.permissions) {
+      resolve(false);
+      return;
+    }
+
+    navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+      resolve(result.state === 'granted');
+    });
   });
 }

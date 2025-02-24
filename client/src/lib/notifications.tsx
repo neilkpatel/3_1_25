@@ -21,25 +21,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const connect = useCallback((userId: number) => {
     // Don't create a new connection if one already exists
     if (socket?.readyState === WebSocket.OPEN) {
+      console.log('WebSocket already connected');
       return;
     }
 
     // Close existing socket if it's in a different state
     if (socket) {
+      console.log('Closing existing WebSocket connection');
       socket.close();
     }
 
     // Use proper WebSocket URL construction
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/notifications`);
+    const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+    console.log('Connecting to WebSocket:', wsUrl);
+
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
+      console.log('WebSocket connection established');
       ws.send(JSON.stringify({ type: "register", userId }));
     };
 
     ws.onmessage = (event) => {
       try {
         const notification: Notification = JSON.parse(event.data);
+        console.log('Received notification:', notification);
 
         toast({
           title: notification.type,
@@ -53,11 +60,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     ws.onerror = (error) => {
       console.error("WebSocket error:", error);
+      // Log the full error details
+      console.error('WebSocket error details:', {
+        url: wsUrl,
+        readyState: ws.readyState,
+        error
+      });
+
       toast({
         variant: "destructive",
         title: "Connection Error",
-        description: "Failed to connect to notification service",
+        description: "Failed to connect to notification service. Retrying...",
       });
+
+      // Attempt to reconnect after a delay
+      setTimeout(() => {
+        console.log('Attempting to reconnect...');
+        connect(userId);
+      }, 5000);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+      setSocket(null);
     };
 
     setSocket(ws);
@@ -65,6 +90,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const disconnect = useCallback(() => {
     if (socket) {
+      console.log('Disconnecting WebSocket');
       socket.close();
       setSocket(null);
     }
