@@ -4,28 +4,37 @@ import { storage } from "./storage";
 import { insertSupRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import { createNotificationServer } from "./websocket";
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   const notificationServer = createNotificationServer(httpServer);
 
+  // Set up authentication routes and middleware
+  setupAuth(app);
+
   // Get active sup requests
   app.get("/api/sup-requests", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
     const requests = await storage.getActiveSupRequests();
     res.json(requests);
   });
 
   // Create a new sup request
   app.post("/api/sup-requests", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
-      const data = insertSupRequestSchema.parse(req.body);
+      const data = insertSupRequestSchema.parse({
+        ...req.body,
+        senderId: req.user.id, // Use the authenticated user's ID
+      });
       const request = await storage.createSupRequest(data);
 
       // Broadcast new sup request to all connected clients
       notificationServer.broadcastNotification({
         type: "New Sup Request",
         message: "Someone wants to meet up!",
-        data: request
+        data: request,
       });
 
       res.json(request);
@@ -36,6 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Accept a sup request
   app.post("/api/sup-requests/:id/accept", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
     const { id } = req.params;
     const schema = z.object({ location: z.object({ lat: z.number(), lng: z.number() }) });
 
@@ -54,14 +64,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateSupRequest(Number(id), {
         status: "accepted",
         acceptedLocation: location,
-        acceptedBy: 1, // TODO: Use actual user ID
+        acceptedBy: req.user.id, // Use the authenticated user's ID
       });
 
       // Send notification to the original sender
       notificationServer.sendNotification(request.senderId, {
         type: "Request Accepted",
         message: "Someone accepted your meet-up request!",
-        data: updated
+        data: updated,
       });
 
       res.json(updated);
@@ -72,6 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get restaurants near a location
   app.get("/api/restaurants/nearby", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
     const schema = z.object({
       lat: z.coerce.number(),
       lng: z.coerce.number(),
@@ -79,26 +90,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     try {
-      console.log('Received nearby restaurants request:', req.query);
       const { lat, lng, radius } = schema.parse(req.query);
-
-      console.log('Fetching bars near:', { lat, lng, radius });
       const bars = await storage.getNearbyRestaurants(lat, lng, 10);
-
-      console.log('Returning bars:', bars);
       res.json(bars);
     } catch (error) {
-      console.error('Error in /api/restaurants/nearby:', error);
-
       if (error instanceof z.ZodError) {
         res.status(400).json({ 
           error: "Invalid coordinates format",
-          details: error.errors
+          details: error.errors,
         });
       } else {
         res.status(500).json({ 
           error: "Failed to fetch nearby bars",
-          details: error instanceof Error ? error.message : 'Unknown error'
+          details: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -106,6 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get friends list
   app.get("/api/friends/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
     const { userId } = req.params;
     const friends = await storage.getFriends(Number(userId));
     res.json(friends);

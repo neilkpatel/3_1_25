@@ -10,6 +10,10 @@ import {
   type Location,
 } from "@shared/schema";
 import { searchBarsNearby } from "./services/yelp";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
   // Users
@@ -30,6 +34,9 @@ export interface IStorage {
   // Restaurants
   getRestaurants(): Promise<Restaurant[]>;
   getNearbyRestaurants(lat: number, lng: number, limit: number): Promise<Restaurant[]>;
+
+  // Session Store
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -37,12 +44,18 @@ export class MemStorage implements IStorage {
   private friends: Map<number, Friend>;
   private supRequests: Map<number, SupRequest>;
   private currentIds: { [key: string]: number };
+  public sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
     this.friends = new Map();
     this.supRequests = new Map();
     this.currentIds = { users: 1, friends: 1, supRequests: 1 };
+
+    // Initialize session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
 
     // Add a simulated sup request
     this.initializeSimulatedRequest();
