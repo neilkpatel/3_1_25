@@ -95,25 +95,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(bars);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ 
+        res.status(400).json({
           error: "Invalid coordinates format",
           details: error.errors,
         });
       } else {
-        res.status(500).json({ 
+        res.status(500).json({
           error: "Failed to fetch nearby bars",
-          details: error instanceof Error ? error.message : 'Unknown error',
+          details: error instanceof Error ? error.message : "Unknown error",
         });
       }
     }
   });
 
-  // Get friends list
-  app.get("/api/friends/:userId", async (req, res) => {
+
+  // Send friend request
+  app.post("/api/friends/request", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const { userId } = req.params;
-    const friends = await storage.getFriends(Number(userId));
-    res.json(friends);
+
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: "Username is required" });
+    }
+
+    try {
+      const targetUser = await storage.getUserByUsername(username);
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (targetUser.id === req.user.id) {
+        return res.status(400).json({ error: "Cannot add yourself as a friend" });
+      }
+
+      const existingFriendship = await storage.getFriends(req.user.id);
+      const alreadyFriends = existingFriendship.some(
+        f => f.friendId === targetUser.id || f.userId === targetUser.id
+      );
+
+      if (alreadyFriends) {
+        return res.status(400).json({ error: "Friend request already exists" });
+      }
+
+      const friend = await storage.addFriend({
+        userId: req.user.id,
+        friendId: targetUser.id,
+        status: "pending"
+      });
+
+      // Notify the target user about the friend request
+      notificationServer.sendNotification(targetUser.id, {
+        type: "Friend Request",
+        message: `${req.user.username} sent you a friend request`,
+      });
+
+      res.json(friend);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send friend request" });
+    }
+  });
+
+  // Accept friend request
+  app.post("/api/friends/:id/accept", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const friend = await storage.getFriend(parseInt(req.params.id));
+      if (!friend) {
+        return res.status(404).json({ error: "Friend request not found" });
+      }
+
+      if (friend.friendId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to accept this request" });
+      }
+
+      const updated = await storage.updateFriend(friend.id, { status: "accepted" });
+
+      // Notify the original sender that their request was accepted
+      notificationServer.sendNotification(friend.userId, {
+        type: "Friend Request Accepted",
+        message: `${req.user.username} accepted your friend request`,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to accept friend request" });
+    }
+  });
+
+  // Reject friend request
+  app.post("/api/friends/:id/reject", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const friend = await storage.getFriend(parseInt(req.params.id));
+      if (!friend) {
+        return res.status(404).json({ error: "Friend request not found" });
+      }
+
+      if (friend.friendId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to reject this request" });
+      }
+
+      await storage.deleteFriend(friend.id);
+      res.sendStatus(200);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reject friend request" });
+    }
+  });
+
+  // Get friends list
+  app.get("/api/friends", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const friends = await storage.getFriends(req.user.id);
+      res.json(friends);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch friends list" });
+    }
   });
 
   return httpServer;
