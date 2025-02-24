@@ -1,17 +1,41 @@
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import type { Location } from "@shared/schema";
+import { useEffect } from 'react';
+import L from 'leaflet';
+import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
   location: Location;
 }
 
 export function MapView({ location }: MapViewProps) {
+  useEffect(() => {
+    // This is needed for the default markers to work
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+      iconUrl: require('leaflet/dist/images/marker-icon.png'),
+      shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+    });
+  }, []);
+
   return (
-    <div className="aspect-video bg-muted rounded-lg relative overflow-hidden">
-      <div className="absolute inset-0 flex items-center justify-center">
-        <p className="text-muted-foreground">
-          Map view at {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-        </p>
-      </div>
+    <div className="h-[400px] rounded-lg overflow-hidden">
+      <MapContainer
+        center={[location.lat, location.lng]}
+        zoom={13}
+        style={{ height: "100%", width: "100%" }}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        <Marker position={[location.lat, location.lng]}>
+          <Popup>
+            Your location
+          </Popup>
+        </Marker>
+      </MapContainer>
     </div>
   );
 }
