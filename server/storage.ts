@@ -8,23 +8,33 @@ import {
   type InsertSupRequest,
   type InsertRestaurant,
   type Location,
+  users,
+  friends,
+  supRequests,
+  restaurants,
 } from "@shared/schema";
 import { searchBarsNearby } from "./services/yelp";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import { db } from "./db";
+import { eq, or, and, desc, sql } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  searchUsers(query: string): Promise<User[]>; // Added searchUsers method signature
+  searchUsers(query: string): Promise<User[]>;
 
   // Friends
   getFriends(userId: number): Promise<Friend[]>;
   addFriend(friend: InsertFriend): Promise<Friend>;
+  getFriend(id: number): Promise<Friend | undefined>;
+  updateFriend(id: number, update: Partial<Friend>): Promise<Friend>;
+  deleteFriend(id: number): Promise<void>;
 
   // Sup Requests
   createSupRequest(request: InsertSupRequest): Promise<SupRequest>;
@@ -40,100 +50,106 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private friends: Map<number, Friend>;
-  private supRequests: Map<number, SupRequest>;
-  private currentIds: { [key: string]: number };
+export class DatabaseStorage implements IStorage {
   public sessionStore: session.Store;
 
   constructor() {
-    this.users = new Map();
-    this.friends = new Map();
-    this.supRequests = new Map();
-    this.currentIds = { users: 1, friends: 1, supRequests: 1 };
-
-    // Initialize session store
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
-
-    // Add a simulated sup request
-    this.initializeSimulatedRequest();
   }
 
-  private initializeSimulatedRequest() {
-    // Add a simulated sup request
-    const simulatedRequest: InsertSupRequest = {
-      senderId: 2, // Different user
-      location: { lat: 25.7144, lng: -80.3626 }, // Near the bars
-      status: "active",
-      expiresAt: new Date(Date.now() + 60000), // Expires in 1 minute
-      acceptedBy: null,
-      acceptedLocation: null
-    };
-
-    const id = this.currentIds.supRequests++;
-    this.supRequests.set(id, { ...simulatedRequest, id });
-  }
-
+  // Users
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(u => u.username === username);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const id = this.currentIds.users++;
-    const newUser = { ...user, id };
-    this.users.set(id, newUser);
-    return newUser;
+    const [createdUser] = await db.insert(users).values(user).returning();
+    return createdUser;
   }
 
+  async searchUsers(query: string): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(sql`${users.username} ILIKE ${`%${query}%`}`)
+      .limit(5);
+  }
+
+  // Friends
   async getFriends(userId: number): Promise<Friend[]> {
-    return Array.from(this.friends.values()).filter(f =>
-      f.userId === userId || f.friendId === userId
-    );
+    return db
+      .select()
+      .from(friends)
+      .where(or(eq(friends.userId, userId), eq(friends.friendId, userId)));
+  }
+
+  async getFriend(id: number): Promise<Friend | undefined> {
+    const [friend] = await db.select().from(friends).where(eq(friends.id, id));
+    return friend;
   }
 
   async addFriend(friend: InsertFriend): Promise<Friend> {
-    const id = this.currentIds.friends++;
-    const newFriend = { ...friend, id };
-    this.friends.set(id, newFriend);
-    return newFriend;
+    const [createdFriend] = await db.insert(friends).values(friend).returning();
+    return createdFriend;
   }
 
+  async updateFriend(id: number, update: Partial<Friend>): Promise<Friend> {
+    const [updatedFriend] = await db
+      .update(friends)
+      .set(update)
+      .where(eq(friends.id, id))
+      .returning();
+    return updatedFriend;
+  }
+
+  async deleteFriend(id: number): Promise<void> {
+    await db.delete(friends).where(eq(friends.id, id));
+  }
+
+  // Sup Requests
   async createSupRequest(request: InsertSupRequest): Promise<SupRequest> {
-    const id = this.currentIds.supRequests++;
-    const newRequest = { ...request, id };
-    this.supRequests.set(id, newRequest);
-    return newRequest;
+    const [createdRequest] = await db.insert(supRequests).values(request).returning();
+    return createdRequest;
   }
 
   async getActiveSupRequests(): Promise<SupRequest[]> {
-    return Array.from(this.supRequests.values()).filter(
-      r => r.status === 'active' && new Date(r.expiresAt) > new Date()
-    );
+    return db
+      .select()
+      .from(supRequests)
+      .where(
+        and(
+          eq(supRequests.status, "active"),
+          sql`${supRequests.expiresAt} > NOW()`
+        )
+      );
   }
 
   async getSupRequest(id: number): Promise<SupRequest | undefined> {
-    return this.supRequests.get(id);
+    const [request] = await db.select().from(supRequests).where(eq(supRequests.id, id));
+    return request;
   }
 
   async updateSupRequest(id: number, update: Partial<SupRequest>): Promise<SupRequest> {
-    const request = this.supRequests.get(id);
-    if (!request) throw new Error('Sup request not found');
-
-    const updated = { ...request, ...update };
-    this.supRequests.set(id, updated);
-    return updated;
+    const [updatedRequest] = await db
+      .update(supRequests)
+      .set(update)
+      .where(eq(supRequests.id, id))
+      .returning();
+    return updatedRequest;
   }
 
+  // Restaurants
   async getRestaurants(): Promise<Restaurant[]> {
-    // This will be replaced by Yelp API calls in getNearbyRestaurants
-    return [];
+    return db.select().from(restaurants);
   }
 
   async getNearbyRestaurants(lat: number, lng: number, limit: number): Promise<Restaurant[]> {
@@ -145,13 +161,6 @@ export class MemStorage implements IStorage {
       return [];
     }
   }
-
-  async searchUsers(query: string): Promise<User[]> { // Added searchUsers method implementation
-    const normalizedQuery = query.toLowerCase();
-    return Array.from(this.users.values())
-      .filter(user => user.username.toLowerCase().includes(normalizedQuery))
-      .slice(0, 5); // Limit to 5 results
-  }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
