@@ -9,23 +9,24 @@ import {
   type InsertRestaurant,
   type Location,
 } from "@shared/schema";
+import { searchBarsNearby } from "./services/yelp";
 
 export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Friends
   getFriends(userId: number): Promise<Friend[]>;
   addFriend(friend: InsertFriend): Promise<Friend>;
-  
+
   // Sup Requests
   createSupRequest(request: InsertSupRequest): Promise<SupRequest>;
   getActiveSupRequests(): Promise<SupRequest[]>;
   getSupRequest(id: number): Promise<SupRequest | undefined>;
   updateSupRequest(id: number, update: Partial<SupRequest>): Promise<SupRequest>;
-  
+
   // Restaurants
   getRestaurants(): Promise<Restaurant[]>;
   getNearbyRestaurants(lat: number, lng: number, limit: number): Promise<Restaurant[]>;
@@ -35,54 +36,23 @@ export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private friends: Map<number, Friend>;
   private supRequests: Map<number, SupRequest>;
-  private restaurants: Map<number, Restaurant>;
   private currentIds: { [key: string]: number };
 
   constructor() {
     this.users = new Map();
     this.friends = new Map();
     this.supRequests = new Map();
-    this.restaurants = new Map();
-    this.currentIds = { users: 1, friends: 1, supRequests: 1, restaurants: 1 };
-    
-    // Add mock restaurants and a simulated sup request
-    this.initializeRestaurants();
+    this.currentIds = { users: 1, friends: 1, supRequests: 1 };
+
+    // Add a simulated sup request
+    this.initializeSimulatedRequest();
   }
 
-  private initializeRestaurants() {
-    const mockRestaurants: InsertRestaurant[] = [
-      {
-        name: "The Cozy Corner",
-        description: "Intimate bistro with farm-to-table cuisine",
-        image: "https://images.unsplash.com/photo-1648396705951-5dce63b1db84",
-        location: { lat: 25.7143, lng: -80.3625 }, // Updated to be near user's location
-        rating: 4
-      },
-      {
-        name: "Urban Plate",
-        description: "Modern American cuisine in an industrial setting",
-        image: "https://images.unsplash.com/photo-1705917893728-d5c594c98d51",
-        location: { lat: 25.7145, lng: -80.3627 }, // Slightly offset
-        rating: 5
-      },
-      {
-        name: "Sushi Master",
-        description: "Premium sushi and Japanese delicacies",
-        image: "https://images.unsplash.com/photo-1597595272404-d8a0da48ec8f",
-        location: { lat: 25.7141, lng: -80.3623 }, // Slightly offset
-        rating: 5
-      }
-    ];
-
-    mockRestaurants.forEach(restaurant => {
-      const id = this.currentIds.restaurants++;
-      this.restaurants.set(id, { ...restaurant, id });
-    });
-
+  private initializeSimulatedRequest() {
     // Add a simulated sup request
     const simulatedRequest: InsertSupRequest = {
       senderId: 2, // Different user
-      location: { lat: 25.7144, lng: -80.3626 }, // Near the restaurants
+      location: { lat: 25.7144, lng: -80.3626 }, // Example location
       status: "active",
       expiresAt: new Date(Date.now() + 60000), // Expires in 1 minute
       acceptedBy: null,
@@ -141,29 +111,25 @@ export class MemStorage implements IStorage {
   async updateSupRequest(id: number, update: Partial<SupRequest>): Promise<SupRequest> {
     const request = this.supRequests.get(id);
     if (!request) throw new Error('Sup request not found');
-    
+
     const updated = { ...request, ...update };
     this.supRequests.set(id, updated);
     return updated;
   }
 
   async getRestaurants(): Promise<Restaurant[]> {
-    return Array.from(this.restaurants.values());
+    // This will be replaced by Yelp API calls in getNearbyRestaurants
+    return [];
   }
 
   async getNearbyRestaurants(lat: number, lng: number, limit: number): Promise<Restaurant[]> {
-    // Simple mock implementation - returns all restaurants sorted by a basic distance calculation
-    return Array.from(this.restaurants.values())
-      .sort((a, b) => {
-        const distA = Math.sqrt(
-          Math.pow(a.location.lat - lat, 2) + Math.pow(a.location.lng - lng, 2)
-        );
-        const distB = Math.sqrt(
-          Math.pow(b.location.lat - lat, 2) + Math.pow(b.location.lng - lng, 2)
-        );
-        return distA - distB;
-      })
-      .slice(0, limit);
+    try {
+      const bars = await searchBarsNearby(lat, lng);
+      return bars.slice(0, limit);
+    } catch (error) {
+      console.error('Error fetching nearby bars:', error);
+      return [];
+    }
   }
 }
 
