@@ -54,8 +54,8 @@ export default function Home() {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Could not get your location. Please enable location services.",
+        title: "Location Error",
+        description: error instanceof Error ? error.message : "Could not get your location.",
       });
     }
   };
