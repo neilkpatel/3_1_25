@@ -20,6 +20,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  searchUsers(query: string): Promise<User[]>; // Added searchUsers method signature
 
   // Friends
   getFriends(userId: number): Promise<Friend[]>;
@@ -143,6 +144,13 @@ export class MemStorage implements IStorage {
       console.error('Error fetching nearby bars:', error);
       return [];
     }
+  }
+
+  async searchUsers(query: string): Promise<User[]> { // Added searchUsers method implementation
+    const normalizedQuery = query.toLowerCase();
+    return Array.from(this.users.values())
+      .filter(user => user.username.toLowerCase().includes(normalizedQuery))
+      .slice(0, 5); // Limit to 5 results
   }
 }
 

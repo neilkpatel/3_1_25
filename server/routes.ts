@@ -216,5 +216,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Search users
+  app.get("/api/users/search", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const query = req.query.q as string;
+    if (!query || query.length < 2) {
+      return res.json([]);
+    }
+
+    try {
+      const users = await storage.searchUsers(query);
+      // Don't include the current user in results
+      const filteredUsers = users.filter(u => u.id !== req.user?.id);
+      res.json(filteredUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to search users" });
+    }
+  });
+
   return httpServer;
 }
