@@ -28,11 +28,14 @@ export default function Home() {
     enabled: !!userLocation,
     queryFn: async () => {
       if (!userLocation) return [];
+      console.log('Fetching nearby restaurants for location:', userLocation);
       const response = await apiRequest(
         'GET',
         `/api/restaurants/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}`
       );
-      return response.json();
+      const data = await response.json();
+      console.log('Received restaurants:', data);
+      return data;
     }
   });
 
@@ -103,6 +106,11 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    console.log('Active requests:', activeRequests);
+    console.log('Nearby restaurants:', nearbyRestaurants);
+  }, [activeRequests, nearbyRestaurants]);
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -132,8 +140,8 @@ export default function Home() {
           <div className="space-y-4">
             <MapView 
               userLocation={userLocation}
-              supRequests={activeRequests}
-              restaurants={nearbyRestaurants}
+              supRequests={activeRequests || []}
+              restaurants={nearbyRestaurants || []}
             />
 
             {nearbyRestaurants && nearbyRestaurants.length > 0 && (

@@ -19,7 +19,7 @@ interface MapViewProps {
 export function MapView({ userLocation, supRequests = [], restaurants = [] }: MapViewProps) {
   useEffect(() => {
     // This is needed for the default markers to work
-    delete L.Icon.Default.prototype._getIconUrl;
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: markerIcon2x,
       iconUrl: markerIcon,
@@ -47,14 +47,14 @@ export function MapView({ userLocation, supRequests = [], restaurants = [] }: Ma
   });
 
   // Calculate bounds to fit all markers
-  const locations = [
+  const locations: Location[] = [
     userLocation,
-    ...supRequests.map(req => req.location),
-    ...restaurants.map(rest => rest.location)
+    ...supRequests.map(req => req.location as Location),
+    ...restaurants.map(rest => rest.location as Location)
   ];
 
   const bounds = L.latLngBounds(
-    locations.map(loc => [loc.lat, loc.lng])
+    locations.map(loc => [loc.lat, loc.lng] as [number, number])
   );
 
   return (
@@ -78,34 +78,40 @@ export function MapView({ userLocation, supRequests = [], restaurants = [] }: Ma
         </Marker>
 
         {/* Sup requests */}
-        {supRequests.map((request) => (
-          <Marker 
-            key={request.id}
-            position={[request.location.lat, request.location.lng]}
-            icon={supIcon}
-          >
-            <Popup>
-              Someone wants to meet up!
-              <br />
-              {request.status === 'active' ? 'Active request' : 'Request accepted'}
-            </Popup>
-          </Marker>
-        ))}
+        {supRequests.map((request) => {
+          const location = request.location as Location;
+          return (
+            <Marker 
+              key={request.id}
+              position={[location.lat, location.lng]}
+              icon={supIcon}
+            >
+              <Popup>
+                Someone wants to meet up!
+                <br />
+                {request.status === 'active' ? 'Active request' : 'Request accepted'}
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* Restaurants */}
-        {restaurants.map((restaurant) => (
-          <Marker
-            key={restaurant.id}
-            position={[restaurant.location.lat, restaurant.location.lng]}
-            icon={restaurantIcon}
-          >
-            <Popup>
-              <div className="font-semibold">{restaurant.name}</div>
-              <div className="text-sm text-muted-foreground">{restaurant.description}</div>
-              <div className="text-sm">Rating: {restaurant.rating}/5</div>
-            </Popup>
-          </Marker>
-        ))}
+        {restaurants.map((restaurant) => {
+          const location = restaurant.location as Location;
+          return (
+            <Marker
+              key={restaurant.id}
+              position={[location.lat, location.lng]}
+              icon={restaurantIcon}
+            >
+              <Popup>
+                <div className="font-semibold">{restaurant.name}</div>
+                <div className="text-sm text-muted-foreground">{restaurant.description}</div>
+                <div className="text-sm">Rating: {restaurant.rating}/5</div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );

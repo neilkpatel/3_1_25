@@ -73,15 +73,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get restaurants near a location
   app.get("/api/restaurants/nearby", async (req, res) => {
     const schema = z.object({
-      lat: z.string().transform(Number),
-      lng: z.string().transform(Number),
+      lat: z.coerce.number(),
+      lng: z.coerce.number(),
     });
 
     try {
+      console.log('Received nearby restaurants request:', req.query);
       const { lat, lng } = schema.parse(req.query);
       const restaurants = await storage.getNearbyRestaurants(lat, lng, 3);
+      console.log('Returning restaurants:', restaurants);
       res.json(restaurants);
     } catch (error) {
+      console.error('Error fetching restaurants:', error);
       res.status(400).json({ error: "Invalid coordinates" });
     }
   });

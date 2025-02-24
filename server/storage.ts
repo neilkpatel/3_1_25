@@ -7,6 +7,7 @@ import {
   type InsertFriend,
   type InsertSupRequest,
   type InsertRestaurant,
+  type Location,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -54,21 +55,21 @@ export class MemStorage implements IStorage {
         name: "The Cozy Corner",
         description: "Intimate bistro with farm-to-table cuisine",
         image: "https://images.unsplash.com/photo-1648396705951-5dce63b1db84",
-        location: { lat: 40.7128, lng: -74.006 },
+        location: { lat: 25.7143, lng: -80.3625 }, // Updated to be near user's location
         rating: 4
       },
       {
         name: "Urban Plate",
         description: "Modern American cuisine in an industrial setting",
         image: "https://images.unsplash.com/photo-1705917893728-d5c594c98d51",
-        location: { lat: 40.7138, lng: -74.008 },
+        location: { lat: 25.7145, lng: -80.3627 }, // Slightly offset
         rating: 5
       },
       {
         name: "Sushi Master",
         description: "Premium sushi and Japanese delicacies",
         image: "https://images.unsplash.com/photo-1597595272404-d8a0da48ec8f",
-        location: { lat: 40.7148, lng: -74.003 },
+        location: { lat: 25.7141, lng: -80.3623 }, // Slightly offset
         rating: 5
       }
     ];
@@ -81,7 +82,7 @@ export class MemStorage implements IStorage {
     // Add a simulated sup request
     const simulatedRequest: InsertSupRequest = {
       senderId: 2, // Different user
-      location: { lat: 40.7158, lng: -74.005 }, // Slightly offset location
+      location: { lat: 25.7144, lng: -80.3626 }, // Near the restaurants
       status: "active",
       expiresAt: new Date(Date.now() + 60000), // Expires in 1 minute
       acceptedBy: null,
