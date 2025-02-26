@@ -15,7 +15,8 @@ class NotificationServer {
     this.wss = new WebSocketServer({ 
       server,
       path: "/ws/notifications",  // Dedicated path for notifications
-      clientTracking: true // Enable built-in client tracking
+      clientTracking: true, // Enable built-in client tracking
+      perMessageDeflate: false // Disable perMessageDeflate for better reliability
     });
     this.clients = new Map();
 
@@ -46,13 +47,14 @@ class NotificationServer {
   }
 
   private handleClose(ws: WebSocket) {
-    // Convert Map entries to array before iteration
-    Array.from(this.clients.entries()).forEach(([userId, client]) => {
-      if (client.ws === ws) {
+    // Iterate over a copy of the keys to avoid issues with modifying the map during iteration
+    for (const userId of Array.from(this.clients.keys())) {
+      const client = this.clients.get(userId);
+      if (client && client.ws === ws) {
         this.clients.delete(userId);
         log(`Client disconnected: ${userId}`);
       }
-    });
+    }
   }
 
   public sendNotification(userId: number, notification: { type: string; message: string; data?: any }) {
