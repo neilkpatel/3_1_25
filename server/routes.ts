@@ -39,20 +39,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertSupRequestSchema.parse({
         ...req.body,
-        senderId: req.user.id, // Use the authenticated user's ID
+        senderId: req.user.id,
       });
       const request = await storage.createSupRequest(data);
 
-      // Broadcast new sup request to all connected clients
-      notificationServer.broadcastNotification({
-        type: "New Sup Request",
-        message: "Someone wants to meet up!",
-        data: request,
-      });
+      try {
+        notificationServer.broadcastNotification({
+          type: "New Sup Request",
+          message: "Someone wants to meet up!",
+          data: request,
+        });
+      } catch (wsError) {
+        console.error("WebSocket broadcast failed:", wsError);
+        // Continue execution even if notification fails
+      }
 
       res.json(request);
     } catch (error) {
-      res.status(400).json({ error: "Invalid request data" });
+      console.error("Sup request creation failed:", error);
+      res.status(400).json({ 
+        error: "Invalid request data",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

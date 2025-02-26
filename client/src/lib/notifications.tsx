@@ -69,10 +69,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // In production, use relative path which will use the same host
     // In development, connect to the Express server port
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.NODE_ENV === 'production' 
-      ? window.location.host
-      : `${window.location.hostname}:5000`;
-    const wsUrl = `${protocol}//${host}/ws/notifications`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
     console.log('Connecting to WebSocket:', wsUrl);
 
     const ws = new WebSocket(wsUrl);
