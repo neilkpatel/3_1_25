@@ -69,25 +69,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // In production, use relative path which will use the same host
     // In development, connect to the Express server port
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Max retries and backoff timing
-    const MAX_RETRIES = 5;
-    const BACKOFF_MS = 1000;
-    let retryCount = 0;
-    let reconnectTimeout: NodeJS.Timeout;
-
     const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
     console.log('Connecting to WebSocket:', wsUrl);
 
     const ws = new WebSocket(wsUrl);
 
-    // Clear reconnection timeout if it exists
-    if (reconnectTimeout) {
-      clearTimeout(reconnectTimeout);
-    }
-
     ws.onopen = () => {
       console.log('WebSocket connection established');
+      setSocket(ws);
       ws.send(JSON.stringify({ type: "register", userId }));
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setSocket(null);
     };
 
     ws.onmessage = (event) => {

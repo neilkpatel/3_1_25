@@ -20,15 +20,16 @@ class NotificationServer {
     });
     this.clients = new Map();
 
-    this.wss.on("connection", (ws) => {
-      log("New WebSocket connection established");
-      let clientId = Math.random(); // Generate a unique ID for each client.
+    this.wss.on("connection", (ws, req) => {
+      log(`New WebSocket connection from ${req.headers.origin}`);
+      let clientId = Math.random();
 
       ws.on("message", (message) => this.handleMessage(ws, message, clientId));
       ws.on("close", () => this.handleClose(ws, clientId));
       ws.on("error", (error) => {
         log(`WebSocket error for client ${clientId}: ${error.message}`);
-        this.handleClose(ws, clientId); //Ensure client is removed on error
+        this.handleClose(ws, clientId);
+        ws.terminate(); // Force close the connection on error
       });
 
       // Implement ping/pong to detect stale connections
