@@ -9,6 +9,7 @@ channel = "stable-24_05"
 deploymentTarget = "cloudrun"
 build = ["sh", "-c", "npm run build"]
 run = ["sh", "-c", "NODE_ENV=production tsx server/index.ts"]
+publicDir = "dist/public"
 
 [[ports]]
 localPort = 5000
