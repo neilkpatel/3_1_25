@@ -10,6 +10,7 @@ interface Notification {
 interface NotificationContextType {
   connect: (userId: number) => void;
   disconnect: () => void;
+  registerPushNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
@@ -17,6 +18,39 @@ const NotificationContext = createContext<NotificationContextType | null>(null);
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const { toast } = useToast();
+
+  const registerPushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('Push notifications not supported');
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.VAPID_PUBLIC_KEY
+      });
+
+      await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription)
+      });
+
+      toast({
+        title: "Push Notifications Enabled",
+        description: "You'll now receive notifications even when not in the app",
+      });
+    } catch (err) {
+      console.error('Failed to register push notifications:', err);
+      toast({
+        variant: "destructive",
+        title: "Push Notification Error",
+        description: "Failed to enable push notifications",
+      });
+    }
+  };
 
   const connect = useCallback((userId: number) => {
     // Don't create a new connection if one already exists

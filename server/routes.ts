@@ -5,6 +5,14 @@ import { insertSupRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import { createNotificationServer } from "./websocket";
 import { setupAuth } from "./auth";
+import webpush from 'web-push';
+
+// Configure web-push
+webpush.setVapidDetails(
+  'mailto:support@example.com',
+  process.env.VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
