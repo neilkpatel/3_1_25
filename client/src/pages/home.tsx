@@ -79,8 +79,6 @@ const createRequest = useMutation({
         console.error('Failed to create request:', error);
         throw error;
       }
-        expiresAt: new Date(Date.now() + 60000).toISOString(),
-      });
     },
     onSuccess: () => {
       setIsRequesting(true);
