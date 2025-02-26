@@ -61,10 +61,15 @@ export default function Home() {
     initializeLocation();
   }, [toast]);
 
-  const createRequest = useMutation({
+  const { data: user } = useQuery({
+    queryKey: ["/api/user"],
+});
+
+const createRequest = useMutation({
     mutationFn: async (location: Location) => {
+      if (!user) throw new Error("Must be logged in to send requests");
       return apiRequest("POST", "/api/sup-requests", {
-        senderId: 1, // TODO: Use actual user ID
+        senderId: user.id,
         location,
         status: "active",
         expiresAt: new Date(Date.now() + 60000).toISOString(),
