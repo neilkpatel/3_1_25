@@ -37,10 +37,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sup-requests", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
+      console.log('Received sup request:', req.body);
+      console.log('User:', req.user);
       const data = insertSupRequestSchema.parse({
         ...req.body,
         senderId: req.user.id,
       });
+      console.log('Parsed data:', data);
       const request = await storage.createSupRequest(data);
 
       try {
