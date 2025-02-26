@@ -72,7 +72,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
     console.log('Connecting to WebSocket:', wsUrl);
 
-    const ws = new WebSocket(wsUrl);
+    // Create WebSocket with error handling
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(wsUrl);
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error);
+      return;
+    }
 
     ws.onopen = () => {
       console.log('WebSocket connection established');
