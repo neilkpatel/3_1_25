@@ -20,6 +20,13 @@ import { eq, or, and, desc, sql } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
+export async function searchUsers(query: string) {
+  return db.select()
+    .from(users)
+    .where(sql`LOWER(username) LIKE ${`%${query.toLowerCase()}%`}`)
+    .limit(10);
+}
+
 const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {

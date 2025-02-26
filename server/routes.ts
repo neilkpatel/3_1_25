@@ -231,6 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filteredUsers = users.filter(u => u.id !== req.user?.id);
       res.json(filteredUsers);
     } catch (error) {
+      console.error("Search users error:", error);
       res.status(500).json({ error: "Failed to search users" });
     }
   });
