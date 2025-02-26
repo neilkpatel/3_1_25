@@ -22,17 +22,32 @@ class NotificationServer {
 
     this.wss.on("connection", (ws) => {
       log("New WebSocket connection established");
-      ws.on("message", (message) => this.handleMessage(ws, message));
-      ws.on("close", () => this.handleClose(ws));
+      let clientId = Math.random(); // Generate a unique ID for each client.
+
+      ws.on("message", (message) => this.handleMessage(ws, message, clientId));
+      ws.on("close", () => this.handleClose(ws, clientId));
       ws.on("error", (error) => {
-        log(`WebSocket error: ${error.message}`);
+        log(`WebSocket error for client ${clientId}: ${error.message}`);
+        this.handleClose(ws, clientId); //Ensure client is removed on error
+      });
+
+      // Implement ping/pong to detect stale connections
+      const pingInterval = setInterval(() => {
+        if (ws.readyState === ws.OPEN) {
+          ws.ping();
+        }
+      }, 30000);
+
+      ws.on('close', () => {
+        clearInterval(pingInterval);
+        this.handleClose(ws, clientId);
       });
     });
 
     log("WebSocket server initialized");
   }
 
-  private handleMessage(ws: WebSocket, message: Buffer | ArrayBuffer | Buffer[]) {
+  private handleMessage(ws: WebSocket, message: Buffer | ArrayBuffer | Buffer[], clientId: number) {
     try {
       const data = JSON.parse(message.toString());
 
@@ -42,17 +57,18 @@ class NotificationServer {
         log(`Client registered: ${userId}`);
       }
     } catch (error) {
-      log(`Invalid message: ${error}`);
+      log(`Invalid message from client ${clientId}: ${error}`);
     }
   }
 
-  private handleClose(ws: WebSocket) {
+  private handleClose(ws: WebSocket, clientId: number) {
     // Iterate over a copy of the keys to avoid issues with modifying the map during iteration
     for (const userId of Array.from(this.clients.keys())) {
       const client = this.clients.get(userId);
       if (client && client.ws === ws) {
         this.clients.delete(userId);
         log(`Client disconnected: ${userId}`);
+        break; //Found and removed, exit loop
       }
     }
   }
@@ -60,14 +76,22 @@ class NotificationServer {
   public sendNotification(userId: number, notification: { type: string; message: string; data?: any }) {
     const client = this.clients.get(userId);
     if (client) {
-      client.ws.send(JSON.stringify(notification));
-      log(`Notification sent to ${userId}: ${notification.type}`);
+      try {
+        client.ws.send(JSON.stringify(notification));
+        log(`Notification sent to ${userId}: ${notification.type}`);
+      } catch (error) {
+        log(`Error sending notification to ${userId}: ${error}`);
+      }
     }
   }
 
   public broadcastNotification(notification: { type: string; message: string; data?: any }) {
     this.clients.forEach((client) => {
-      client.ws.send(JSON.stringify(notification));
+      try {
+        client.ws.send(JSON.stringify(notification));
+      } catch (error) {
+        log(`Error sending broadcast notification: ${error}`);
+      }
     });
     log(`Broadcast notification: ${notification.type}`);
   }
