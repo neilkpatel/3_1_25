@@ -8,10 +8,15 @@ import { setupAuth } from "./auth";
 import webpush from 'web-push';
 
 // Configure web-push
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  console.error('VAPID keys not found in environment variables');
+  throw new Error('VAPID keys must be set in environment variables');
+}
+
 webpush.setVapidDetails(
   'mailto:support@example.com',
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
 );
 
 export async function registerRoutes(app: Express): Promise<Server> {
