@@ -68,24 +68,30 @@ export default function Home() {
 const createRequest = useMutation({
     mutationFn: async (location: Location) => {
       if (!user) throw new Error("Must be logged in to send requests");
-      try {
-        return await apiRequest("POST", "/api/sup-requests", {
-          senderId: user.id,
-          location,
-          status: "active",
-          expiresAt: new Date(Date.now() + 60000).toISOString(),
-        });
-      } catch (error) {
-        console.error('Failed to create request:', error);
-        throw error;
-      }
+      const response = await apiRequest("POST", "/api/sup-requests", {
+        senderId: user.id,
+        location,
+        status: "active",
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      });
+      
+      if (!response) throw new Error("Failed to create request");
+      return response;
     },
     onSuccess: () => {
       setIsRequesting(true);
       queryClient.invalidateQueries({ queryKey: ["/api/sup-requests"] });
       toast({
         title: "Sup request sent!",
-        description: "Waiting for friends to respond...",
+        description: "Push notifications sent to your friends. They'll get notified even if they're not using the app right now.",
+        duration: 5000,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to send request",
+        description: error instanceof Error ? error.message : "Please try again",
       });
     },
   });
