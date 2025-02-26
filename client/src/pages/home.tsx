@@ -70,9 +70,15 @@ const createRequest = useMutation({
       if (!user) throw new Error("Must be logged in to send requests");
       try {
         return await apiRequest("POST", "/api/sup-requests", {
-        senderId: user.id,
-        location,
-        status: "active",
+          senderId: user.id,
+          location,
+          status: "active",
+          expiresAt: new Date(Date.now() + 60000).toISOString(),
+        });
+      } catch (error) {
+        console.error('Failed to create request:', error);
+        throw error;
+      }
         expiresAt: new Date(Date.now() + 60000).toISOString(),
       });
     },
