@@ -46,7 +46,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      console.log('User:', req.user);
+      console.log('Validation attempt:', {
+        requestBody: req.body,
+        senderId: req.user?.id,
+        schema: insertSupRequestSchema.shape
+      });
       const data = insertSupRequestSchema.parse({
         ...req.body,
         senderId: req.user.id,
