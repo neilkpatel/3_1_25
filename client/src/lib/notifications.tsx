@@ -138,7 +138,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [disconnect]);
 
   return (
-    <NotificationContext.Provider value={{ connect, disconnect }}>
+    <NotificationContext.Provider value={{ connect, disconnect, registerPushNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

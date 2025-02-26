@@ -68,7 +68,8 @@ export default function Home() {
 const createRequest = useMutation({
     mutationFn: async (location: Location) => {
       if (!user) throw new Error("Must be logged in to send requests");
-      return apiRequest("POST", "/api/sup-requests", {
+      try {
+        return await apiRequest("POST", "/api/sup-requests", {
         senderId: user.id,
         location,
         status: "active",

@@ -60,3 +60,17 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertFriend = z.infer<typeof insertFriendSchema>;
 export type InsertSupRequest = z.infer<typeof insertSupRequestSchema>;
 export type InsertRestaurant = z.infer<typeof insertRestaurantSchema>;
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(),
+  message: text("message").notNull(),
+  data: jsonb("data"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications);
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
