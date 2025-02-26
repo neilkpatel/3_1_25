@@ -67,10 +67,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(request);
     } catch (error) {
-      console.error("Sup request creation failed:", error);
+      console.error("Sup request creation failed:", {
+        body: req.body,
+        user: req.user,
+        error: error instanceof Error ? error.message : error
+      });
       res.status(400).json({ 
         error: "Invalid request data",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
+        requestData: req.body
       });
     }
   });
