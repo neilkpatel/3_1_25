@@ -35,9 +35,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create a new sup request
   app.post("/api/sup-requests", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log('=== New Sup Request ===');
+    console.log('Auth status:', req.isAuthenticated());
+    console.log('User:', req.user);
+    console.log('Request body:', req.body);
+    
+    if (!req.isAuthenticated()) {
+      console.log('Authentication failed');
+      return res.sendStatus(401);
+    }
+    
     try {
-      console.log('Received sup request:', req.body);
       console.log('User:', req.user);
       const data = insertSupRequestSchema.parse({
         ...req.body,
