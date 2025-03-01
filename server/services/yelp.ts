@@ -3,6 +3,7 @@ import type { Restaurant, Location } from "@shared/schema";
 interface YelpBusiness {
   id: string;
   name: string;
+
   image_url: string;
   url: string;
   rating: number;
